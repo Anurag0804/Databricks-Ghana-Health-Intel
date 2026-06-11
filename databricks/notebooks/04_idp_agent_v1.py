@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "2"
+# ///
 # MAGIC %md
 # MAGIC # 04 — IDP Agent v11 (Schema-Governed Healthcare Intelligence Engine)
 # MAGIC
@@ -43,7 +47,14 @@
 # MAGIC ```
 
 # COMMAND ----------
+
 # MAGIC %md ## 0 — Imports
+
+# COMMAND ----------
+
+# DBTITLE 1,Install Required Packages
+# MAGIC %pip install requests beautifulsoup4 lxml pydantic>=2.0 --quiet
+# MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------
 
@@ -79,6 +90,7 @@ print(f"Run     : {datetime.now(timezone.utc).isoformat()}")
 print(f"IDP     : v11 — Schema-Governed Healthcare Intelligence Engine")
 
 # COMMAND ----------
+
 # MAGIC %md ## 1 — Canonical Schema Registry
 
 # COMMAND ----------
@@ -336,6 +348,7 @@ _PYDANTIC_TO_DELTA.update({
 print("Canonical Registry loaded:", len(FIELD_REGISTRY), "fields")
 
 # COMMAND ----------
+
 # MAGIC %md ## 2 — Pydantic Models
 
 # COMMAND ----------
@@ -465,6 +478,7 @@ _FDR_VALID_SPECIALTIES: FrozenSet[str] = frozenset({
 })
 
 # COMMAND ----------
+
 # MAGIC %md ## 3 — System Prompts
 
 # COMMAND ----------
@@ -712,6 +726,7 @@ confidence_score: 0.9-1.0 strong evidence | 0.7-0.9 adequate | 0.5-0.7 some gaps
 Return ONLY: {{"is_valid": true, "anomalies": [], "confidence_score": 0.75}}"""
 
 # COMMAND ----------
+
 # MAGIC %md ## 4 — Configuration
 
 # COMMAND ----------
@@ -791,6 +806,7 @@ print(f"TEST_MODE    : {cfg.TEST_MODE}")
 print(f"MAX_WORKERS  : {cfg.MAX_WORKERS}")
 
 # COMMAND ----------
+
 # MAGIC %md ## 5 — Healthcare Knowledge Graph
 
 # COMMAND ----------
@@ -1032,6 +1048,7 @@ def source_trust(tag: str) -> int:
     return 4
 
 # COMMAND ----------
+
 # MAGIC %md ## 6 — Utility Helpers
 
 # COMMAND ----------
@@ -1254,6 +1271,7 @@ def _extract_domain_only(raw: str) -> Optional[str]:
     return None
 
 # COMMAND ----------
+
 # MAGIC %md ## 7 — Clinical Junk Filter (v11 enhanced)
 
 # COMMAND ----------
@@ -1416,6 +1434,7 @@ def apply_declarative_style(items: List[str], field_type: str) -> List[str]:
     return [_ensure_declarative(i, field_type) for i in items if i]
 
 # COMMAND ----------
+
 # MAGIC %md ## 8 — SharedEvidence + FieldProvenance + PlanningCompleteness
 
 # COMMAND ----------
@@ -1615,6 +1634,7 @@ class SharedEvidence:
         return committed
 
 # COMMAND ----------
+
 # MAGIC %md ## 9 — Web Enrichment
 
 # COMMAND ----------
@@ -2240,6 +2260,7 @@ def build_shared_evidence(row: Dict[str, Any]) -> SharedEvidence:
     return ev
 
 # COMMAND ----------
+
 # MAGIC %md ## 10 — LLM Infrastructure
 
 # COMMAND ----------
@@ -2300,6 +2321,7 @@ def call_llama(
     return ""
 
 # COMMAND ----------
+
 # MAGIC %md ## 11 — Phase 1: Org Classification (v11: stricter per PDF definitions)
 
 # COMMAND ----------
@@ -2392,6 +2414,7 @@ def phase1_classify_org(row: Dict[str, Any]) -> str:
     return "facility"
 
 # COMMAND ----------
+
 # MAGIC %md ## 12 — Phase 3: LLM Free-Form Extraction (I13, I21)
 
 # COMMAND ----------
@@ -2451,6 +2474,7 @@ def phase2_extract_freeform(row: Dict[str, Any], ev: SharedEvidence) -> Dict[str
     }
 
 # COMMAND ----------
+
 # MAGIC %md ## 13 — Phase Org Info Fill-in
 
 # COMMAND ----------
@@ -2572,6 +2596,7 @@ def phase3_org_info_fillin(row: Dict[str, Any], ev: SharedEvidence, org_type: st
     return fill
 
 # COMMAND ----------
+
 # MAGIC %md ## 14 — Phase 4 (L1): Deterministic Fill
 
 # COMMAND ----------
@@ -2697,6 +2722,7 @@ def phase4_l1_deterministic(row: Dict[str, Any]) -> Dict[str, Any]:
     return fills
 
 # COMMAND ----------
+
 # MAGIC %md ## 15 — Phase 5 (L2): Semantic / Ontology Fill
 
 # COMMAND ----------
@@ -2795,6 +2821,7 @@ def phase5_l2_semantic(
     return fills
 
 # COMMAND ----------
+
 # MAGIC %md ## 16 — Phase 6 (L3): Web Evidence Apply
 
 # COMMAND ----------
@@ -2879,6 +2906,7 @@ def phase6_l3_web_apply(row: Dict[str, Any], ev: SharedEvidence) -> Dict[str, An
     return fills
 
 # COMMAND ----------
+
 # MAGIC %md ## 17 — Phase 7 (L4): Batched LLM Fill
 
 # COMMAND ----------
@@ -3073,6 +3101,7 @@ def phase7_l4_batched_llm(row: Dict[str, Any], ev: SharedEvidence) -> Dict[str, 
     return filled
 
 # COMMAND ----------
+
 # MAGIC %md ## 18 — Phase 8: Capability Validation
 
 # COMMAND ----------
@@ -3126,6 +3155,7 @@ def phase8_validate_capability(row: Dict[str, Any], extracted: Dict[str, Any]) -
     return {"is_valid": is_valid, "anomalies": anomalies, "confidence_score": confidence}
 
 # COMMAND ----------
+
 # MAGIC %md ## 19 — Phase 9: Specialty Inference (I18: Conservative)
 
 # COMMAND ----------
@@ -3207,6 +3237,7 @@ def phase9_infer_specialties(
     return result
 
 # COMMAND ----------
+
 # MAGIC %md ## 20 — Phase 10: Medical Gap Intelligence (I22)
 
 # COMMAND ----------
@@ -3366,6 +3397,7 @@ def phase10_medical_gap_intelligence(
     }
 
 # COMMAND ----------
+
 # MAGIC %md ## 21 — Phase 11: NGO Field Population (I17)
 
 # COMMAND ----------
@@ -3429,6 +3461,7 @@ def phase11_ngo_field_population(row: Dict[str, Any], ev: SharedEvidence, org_ty
     return fills
 
 # COMMAND ----------
+
 # MAGIC %md ## 22 — Phase 12: Planning Completeness Layer (I19)
 
 # COMMAND ----------
@@ -3562,6 +3595,7 @@ def phase12_planning_completeness(
     }
 
 # COMMAND ----------
+
 # MAGIC %md ## 23 — Phase 13: Critical Completeness Score + Citations (I15)
 
 # COMMAND ----------
@@ -3751,6 +3785,7 @@ def build_idp_trace(
     })
 
 # COMMAND ----------
+
 # MAGIC %md ## 24 — Per-Row Pipeline
 
 # COMMAND ----------
@@ -4043,11 +4078,18 @@ def process_single_row(row_dict: Dict[str, Any], run_id: str) -> Dict[str, Any]:
     return row_d
 
 # COMMAND ----------
+
 # MAGIC %md ## 25 — Main Pipeline Orchestration (Parallel)
 
 # COMMAND ----------
 
-mlflow.set_experiment(cfg.MLFLOW_EXP)
+# Set MLflow tracking and registry URIs explicitly to avoid Spark Connect config access issue
+import mlflow
+mlflow.set_tracking_uri("databricks")
+mlflow.set_registry_uri("databricks-uc")
+# Use experiment ID directly to avoid path resolution issues
+experiment_id = "1270786575489587"
+mlflow.set_experiment(experiment_id=experiment_id)
 
 gold_df = spark.table(cfg.GOLD_TABLE)
 if cfg.TEST_MODE:
@@ -4155,6 +4197,7 @@ with mlflow.start_run(run_name="04_idp_agent_v11") as parent_run:
 print(f"\n[IDP v11] Pipeline complete in {total_wall:.1f}s. Building DataFrame ({len(results):,} rows)...")
 
 # COMMAND ----------
+
 # MAGIC %md ## 26 — Write gold_idp_enriched (190-Column Schema)
 
 # COMMAND ----------
@@ -4459,6 +4502,7 @@ spark.sql(f"""
 """)
 
 # COMMAND ----------
+
 # MAGIC %md ## 27 — Quality Validation Report
 
 # COMMAND ----------
@@ -4656,5 +4700,3 @@ idp.agg(
 #     )).alias("have_enriched"),
 # ).show()
 
-
-# COMMAND ----------
