@@ -4,20 +4,18 @@ Covers all 59 MoSCoW questions from the VF Agent Comprehensive Question Referenc
 
 # ── SQL Schema (exactly matches Delta tables in virtue_foundation.ghana) ───────
 SQL_SCHEMA = """
-Table: virtue_foundation.ghana.gold_idp_enriched  (955 rows - primary facility table)
+Table: virtue_foundation.ghana.gold_facilities_enriched  (955 rows - primary facility table)
 Key columns:
   unique_id STRING, name STRING, region_normalised STRING,
   facility_type_clean STRING (hospital/clinic/pharmacy/dentist/doctor/unknown),
   facility_tier_label STRING (Regional/District/Specialist/Community/Other),
-  service_maturity_label STRING (CREDIBLE/CLAIMED/SPARSE),
-  operatorTypeId STRING (public/private),
   organization_type_clean STRING (facility/ngo),
   organization_category STRING (government/private/faith_based/ngo),
   ownership_model STRING, city_clean STRING, address_city STRING, address_line1 STRING,
   latitude DOUBLE, longitude DOUBLE, geo_quality_score DOUBLE, geo_precision_tier INT,
-  number_doctors_int DOUBLE, capacity_int DOUBLE,
-  data_completeness_score DOUBLE 0-1,
-  medical_desert_score DOUBLE 0-1 higher=worse,
+  number_doctors_int INT, capacity_int INT,
+  data_completeness_score FLOAT 0-1,
+  medical_desert_score FLOAT 0-1 higher=worse,
   desert_label STRING (Adequate/Marginal/At Risk/Severe Desert/Critical Desert),
   has_emergency_medicine BOOLEAN, has_obstetrics BOOLEAN, has_surgery BOOLEAN,
   has_pediatrics BOOLEAN, has_icu BOOLEAN, has_radiology BOOLEAN,
@@ -25,27 +23,28 @@ Key columns:
   is_hospital BOOLEAN, is_clinic BOOLEAN, is_ngo BOOLEAN,
   is_public BOOLEAN, is_private BOOLEAN, is_faith_based BOOLEAN,
   is_specialist_hospital BOOLEAN, is_government BOOLEAN, accepts_volunteers_bool BOOLEAN,
-  procedure_count BIGINT, equipment_count BIGINT, capability_count BIGINT, specialty_count BIGINT,
-  procedure_enriched STRING JSON array, equipment_enriched STRING JSON array,
-  capability_enriched STRING JSON array, specialties_enriched STRING JSON array,
-  capability_is_valid BOOLEAN, capability_confidence DOUBLE,
-  capability_anomalies STRING JSON array, capability_dependency_gaps STRING JSON array,
+  procedure_count INT, equipment_count INT, capability_count INT, specialty_count INT,
+  specialties STRING (raw), procedure STRING (raw), equipment STRING (raw), capability STRING (raw),
+  specialties_parsed ARRAY<STRING>, procedure_parsed ARRAY<STRING>,
+  equipment_parsed ARRAY<STRING>, capability_parsed ARRAY<STRING>,
+  capability_dependency_gaps STRING, capability_graph_summary STRING,
   stat_anomaly_capability_inflation BOOLEAN, stat_anomaly_hospital_no_doctors BOOLEAN,
   stat_anomaly_clinic_claims_icu BOOLEAN, stat_anomaly_ghost_facility BOOLEAN,
   stat_anomaly_specialty_mismatch BOOLEAN, stat_anomaly_procedure_breadth BOOLEAN,
-  total_stat_anomalies BIGINT,
-  ghost_probability_score DOUBLE, ghost_review_priority STRING,
-  emergency_readiness_score DOUBLE, critical_care_score DOUBLE,
-  service_richness_score DOUBLE, infrastructure_completeness_score DOUBLE,
-  referral_complexity_score DOUBLE, healthcare_maturity_score DOUBLE,
-  clinical_complexity_score DOUBLE, facility_complexity_level STRING L1/L2/L3,
-  evidence_weight DOUBLE, evidence_absence_confidence DOUBLE,
-  clinical_completeness DOUBLE, location_completeness DOUBLE, contact_completeness DOUBLE,
-  rag_quality_score DOUBLE, is_rag_ready BOOLEAN,
+  total_stat_anomalies INT,
+  ghost_probability_score FLOAT, ghost_review_priority STRING,
+  emergency_readiness_score FLOAT, critical_care_score FLOAT,
+  service_richness_score FLOAT, infrastructure_completeness_score FLOAT,
+  referral_complexity_score FLOAT, healthcare_maturity_score FLOAT,
+  clinical_complexity_score FLOAT, facility_complexity_level STRING L1/L2/L3,
+  evidence_weight FLOAT,
+  clinical_completeness FLOAT, location_completeness FLOAT, contact_completeness FLOAT,
+  rag_quality_score FLOAT, is_rag_ready BOOLEAN,
   is_search_ready BOOLEAN, is_planning_ready BOOLEAN, is_clinical_ready BOOLEAN,
   email STRING, officialWebsite STRING, source_url STRING,
-  description STRING, organizationdescription STRING, yearestablished STRING,
-  idp_citations STRING JSON array, idp_run_id STRING, _idp_processed STRING
+  description STRING, organizationdescription STRING, doc_text STRING,
+  yearestablished STRING, citations ARRAY<STRUCT>,
+  ngo_serves_ghana BOOLEAN
 
 Table: virtue_foundation.ghana.gold_anomaly_flags  (955 rows)
 Key columns:
@@ -90,9 +89,9 @@ Key columns:
   llm_confirmed_anomaly_count BIGINT, llm_anomaly_severity STRING,
   llm_clinical_assessment STRING, llm_false_positive_reason STRING,
   llm_recommended_quality_category STRING,
-  specialties_enriched STRING, procedure_enriched STRING,
-  equipment_enriched STRING, capability_enriched STRING, capability_anomalies STRING,
+  llm_recommended_quality_category STRING,
   medical_desert_score DOUBLE, desert_label STRING
+  DO NOT USE: specialties_enriched, procedure_enriched, equipment_enriched, capability_enriched, capability_anomalies (these do NOT exist in this table)
 
 Table: virtue_foundation.ghana.gold_medical_desert_scores  (17 rows - one per region)
 Key columns:
@@ -228,10 +227,10 @@ HARD RULES:
 3. Use LOWER() for case-insensitive string comparisons
 4. For boolean columns: column = true (not = 'true' or = 1)
 5. Never use DROP, INSERT, UPDATE, DELETE, ALTER, CREATE, TRUNCATE
-6. For JSON string columns (procedure_enriched, equipment_enriched, capability_enriched, specialties_enriched):
-   use LIKE '%value%' for substring search
-7. number_doctors_int and capacity_int are DOUBLE — use CAST(x AS INT) if needed
-8. idp_citations is ARRAY<STRING> — do not try to parse it as JSON
+6. For searching facility capabilities, use LOWER(doc_text) LIKE '%value%' or LOWER(description) LIKE '%value%'
+   Also available: specialties (raw text), procedure (raw text), equipment (raw text), capability (raw text)
+7. number_doctors_int and capacity_int are INT
+8. citations is ARRAY<STRUCT> — do not try to parse it as JSON
 9. gold_regional_summary uses region_normalised; gold_medical_desert_scores uses region (same values)
 10. For anomaly queries, always prefer gold_anomaly_flags; for regional aggregates, use gold_regional_summary
 11. Return only columns that exist in the schema above. Never invent column names.
@@ -239,30 +238,30 @@ HARD RULES:
 QUESTION PATTERNS AND CORRECT SQL APPROACHES:
 
 Q1.1 "How many hospitals have cardiology?"
-→ SELECT COUNT(*) as count FROM virtue_foundation.ghana.gold_idp_enriched
-  WHERE is_hospital = true AND (LOWER(specialties_enriched) LIKE '%cardiology%'
-  OR LOWER(procedure_enriched) LIKE '%cardiology%' OR LOWER(capability_enriched) LIKE '%cardio%')
+→ SELECT COUNT(*) as count FROM virtue_foundation.ghana.gold_facilities_enriched
+  WHERE is_hospital = true AND (LOWER(specialties) LIKE '%cardiology%'
+  OR LOWER(doc_text) LIKE '%cardiology%' OR LOWER(capability) LIKE '%cardio%')
 
 Q1.2 "Hospitals in [region] that perform [procedure]"
-→ SELECT name, region_normalised, city_clean FROM virtue_foundation.ghana.gold_idp_enriched
+→ SELECT name, region_normalised, city_clean FROM virtue_foundation.ghana.gold_facilities_enriched
   WHERE is_hospital = true AND region_normalised = '[Region]'
-  AND LOWER(procedure_enriched) LIKE '%[procedure]%' LIMIT 50
+  AND LOWER(doc_text) LIKE '%[procedure]%' LIMIT 50
 
 Q1.3 "What services does [Facility Name] offer?"
-→ SELECT name, region_normalised, specialties_enriched, procedure_enriched,
-    equipment_enriched, capability_enriched, has_surgery, has_icu, has_obstetrics,
+→ SELECT name, region_normalised, specialties, procedure,
+    equipment, capability, has_surgery, has_icu, has_obstetrics,
     has_emergency_medicine, has_radiology, number_doctors_int
-  FROM virtue_foundation.ghana.gold_idp_enriched
+  FROM virtue_foundation.ghana.gold_facilities_enriched
   WHERE LOWER(name) LIKE LOWER('%[Facility Name]%') LIMIT 5
 
 Q1.5 "Which region has the most [type] hospitals?"
-→ SELECT region_normalised, COUNT(*) as count FROM virtue_foundation.ghana.gold_idp_enriched
+→ SELECT region_normalised, COUNT(*) as count FROM virtue_foundation.ghana.gold_facilities_enriched
   WHERE is_hospital = true GROUP BY region_normalised ORDER BY count DESC LIMIT 17
 
 Q2.1 "How many hospitals within X km of [city]?"
 → SELECT name, region_normalised, city_clean, latitude, longitude,
     has_surgery, has_icu, has_emergency_medicine, medical_desert_score
-  FROM virtue_foundation.ghana.gold_idp_enriched
+  FROM virtue_foundation.ghana.gold_facilities_enriched
   WHERE latitude IS NOT NULL AND longitude IS NOT NULL LIMIT 100
   [NOTE: geo filtering by Haversine will happen in the geo node — just return the candidate set]
 
@@ -275,8 +274,8 @@ Q2.3 "Cold spots — no ICU within X km"
 
 Q3.1 "Facilities claiming subspecialty without required equipment"
 → SELECT name, region_normalised, anomaly_risk_level, llm_clinical_assessment,
-    procedure_enriched, equipment_enriched, enhanced_procedures_no_equipment,
-    stat_anomaly_capability_inflation, capability_anomalies
+    procedure_count, equipment_count, enhanced_procedures_no_equipment,
+    capability_dependency_gaps
   FROM virtue_foundation.ghana.gold_anomaly_flags
   WHERE enhanced_procedures_no_equipment = true
   ORDER BY total_anomaly_flags DESC LIMIT 30
@@ -294,7 +293,7 @@ Q4.7 "Correlations between facility characteristics"
     AVG(equipment_count) as avg_equipment, AVG(capability_count) as avg_capabilities,
     AVG(number_doctors_int) as avg_doctors, AVG(capacity_int) as avg_beds,
     COUNT(*) as count
-  FROM virtue_foundation.ghana.gold_idp_enriched
+  FROM virtue_foundation.ghana.gold_facilities_enriched
   GROUP BY facility_type_clean ORDER BY avg_procedures DESC
 
 Q4.8 "High procedure breadth but minimal equipment"
@@ -316,21 +315,21 @@ Q4.9 "Things that shouldn't move together (large beds + minimal surgery)"
 Q6.1 "Where is workforce for [subspecialty] practicing?"
 → SELECT region_normalised, COUNT(*) as facility_count, SUM(number_doctors_int) as total_doctors,
     AVG(number_doctors_int) as avg_doctors_per_facility
-  FROM virtue_foundation.ghana.gold_idp_enriched
-  WHERE LOWER(specialties_enriched) LIKE '%[subspecialty]%'
+  FROM virtue_foundation.ghana.gold_facilities_enriched
+  WHERE LOWER(specialties) LIKE '%[subspecialty]%'
   GROUP BY region_normalised ORDER BY total_doctors DESC NULLS LAST
 
 Q7.5 "Procedures depending on only 1-2 facilities (scarcity)"
 → SELECT
     'cataract' as procedure, COUNT(*) as facility_count
-  FROM virtue_foundation.ghana.gold_idp_enriched
-  WHERE LOWER(procedure_enriched) LIKE '%cataract%'
+  FROM virtue_foundation.ghana.gold_facilities_enriched
+  WHERE LOWER(doc_text) LIKE '%cataract%'
   UNION ALL
-  SELECT 'corneal transplant', COUNT(*) FROM virtue_foundation.ghana.gold_idp_enriched
-  WHERE LOWER(procedure_enriched) LIKE '%corneal%'
+  SELECT 'corneal transplant', COUNT(*) FROM virtue_foundation.ghana.gold_facilities_enriched
+  WHERE LOWER(doc_text) LIKE '%corneal%'
   UNION ALL
-  SELECT 'cardiac surgery', COUNT(*) FROM virtue_foundation.ghana.gold_idp_enriched
-  WHERE LOWER(procedure_enriched) LIKE '%cardiac%'
+  SELECT 'cardiac surgery', COUNT(*) FROM virtue_foundation.ghana.gold_facilities_enriched
+  WHERE LOWER(doc_text) LIKE '%cardiac%'
   ORDER BY facility_count ASC LIMIT 20
 
 Q7.6 "Oversupply vs scarcity by procedure complexity"

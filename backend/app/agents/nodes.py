@@ -286,7 +286,7 @@ def sql_node(state: AgentState) -> AgentState:
                        has_emergency_medicine, has_surgery, has_icu,
                        medical_desert_score, desert_label,
                        data_completeness_score, number_doctors_int, capacity_int
-                FROM {CATALOG}.gold_idp_enriched
+                FROM {CATALOG}.gold_facilities_enriched
                 ORDER BY data_completeness_score DESC NULLS LAST
                 LIMIT 10
             """
@@ -300,7 +300,7 @@ def sql_node(state: AgentState) -> AgentState:
         input_summary=f"Query: {query[:100]}",
         output_summary=f"SQL returned {len(sql_results)} rows"
                        + (f" [err: {error_msg[:80]}]" if error_msg else ""),
-        data_sources=["gold_idp_enriched", "gold_anomaly_flags",
+        data_sources=["gold_facilities_enriched", "gold_anomaly_flags",
                       "gold_medical_desert_scores", "gold_regional_summary"],
         confidence=0.9 if not error_msg else 0.5,
     )
@@ -329,7 +329,7 @@ def rag_node(state: AgentState) -> AgentState:
         "rag_search", step_num,
         input_summary=f"Semantic search: {query[:100]}",
         output_summary=f"Retrieved {len(rag_results)} facilities. Top: {top_name}",
-        data_sources=["faiss_index", "gold_idp_enriched"],
+        data_sources=["faiss_index", "gold_facilities_enriched"],
         confidence=0.88,
     )
     prev_steps = state.get("step_citations", [])
@@ -420,8 +420,8 @@ def geo_node(state: AgentState) -> AgentState:
                    has_infectious_disease, has_mental_health,
                    medical_desert_score, desert_label,
                    number_doctors_int, capacity_int, data_completeness_score,
-                   specialties_enriched, procedure_enriched
-            FROM {CATALOG}.gold_idp_enriched
+                   specialty_count, procedure_count
+            FROM {CATALOG}.gold_facilities_enriched
             WHERE latitude IS NOT NULL AND longitude IS NOT NULL
               AND ABS(latitude  - {center_lat}) < {deg_buffer}
               AND ABS(longitude - {center_lon}) < {deg_buffer}
@@ -461,7 +461,7 @@ def geo_node(state: AgentState) -> AgentState:
         "geo_analysis", step_num,
         input_summary=f"Geo search: {center_city} ({center_lat:.3f},{center_lon:.3f}), radius {radius_km:.0f} km",
         output_summary=f"Found {len(geo_results)} facilities. Cold spots: {cold_spots or 'none'}",
-        data_sources=["gold_idp_enriched"],
+        data_sources=["gold_facilities_enriched"],
         confidence=0.87,
     )
     prev_steps = state.get("step_citations", [])
@@ -563,7 +563,7 @@ def desert_node(state: AgentState) -> AgentState:
                    missing_critical_specialties,
                    recommended_actions,
                    facilities_per_100k, region_population,
-                   region_centroid_lat, region_centroid_lon
+                   centroid_lat AS region_centroid_lat, centroid_lon AS region_centroid_lon
             FROM {CATALOG}.gold_medical_desert_scores
             {region_filter}
             ORDER BY medical_desert_score DESC
@@ -701,7 +701,7 @@ def ngo_node(state: AgentState) -> AgentState:
                    description, organizationdescription,
                    number_doctors_int, data_completeness_score,
                    is_ngo, organization_type_clean
-            FROM {CATALOG}.gold_idp_enriched
+            FROM {CATALOG}.gold_facilities_enriched
             WHERE (
                 organization_type_clean = 'ngo'
                 OR is_ngo = true
@@ -724,7 +724,7 @@ def ngo_node(state: AgentState) -> AgentState:
         gap_sql = f"""
             SELECT d.region, d.medical_desert_score, d.mds_label,
                    d.total_facilities, d.total_doctors,
-                   d.critical_specialties_missing,
+                   d.missing_critical_specialties,
                    COALESCE(r.ngo_count, 0) as ngo_count
             FROM {CATALOG}.gold_medical_desert_scores d
             LEFT JOIN {CATALOG}.gold_regional_summary r
@@ -743,7 +743,7 @@ def ngo_node(state: AgentState) -> AgentState:
         "ngo_search", step_num,
         input_summary=f"NGO/faith-based search for: {state['query'][:100]}",
         output_summary=f"Found {len(ngo_results)} NGO/faith-based facilities; {len(ngo_gap_results)} gap regions",
-        data_sources=["gold_idp_enriched", "gold_medical_desert_scores"],
+        data_sources=["gold_facilities_enriched", "gold_medical_desert_scores"],
         confidence=0.90,
     )
     prev_steps = state.get("step_citations", [])
@@ -782,7 +782,7 @@ def workforce_node(state: AgentState) -> AgentState:
                        has_surgery, has_icu, has_obstetrics, has_radiology,
                        medical_desert_score, desert_label,
                        data_completeness_score, doc_text, description
-                FROM {CATALOG}.gold_idp_enriched
+                FROM {CATALOG}.gold_facilities_enriched
                 WHERE is_rag_ready = true
                   AND (
                     LOWER(doc_text) LIKE '%visiting%'
@@ -833,7 +833,7 @@ def workforce_node(state: AgentState) -> AgentState:
         "workforce_analysis", step_num,
         input_summary=f"Workforce ({'visiting' if visiting_mode else 'distribution'}): {query[:100]}",
         output_summary=f"{len(workforce_results)} records. {truncate(reasoning, 120)}",
-        data_sources=["gold_idp_enriched" if visiting_mode else "gold_regional_summary"],
+        data_sources=["gold_facilities_enriched" if visiting_mode else "gold_regional_summary"],
         confidence=0.82,
     )
     prev_steps = state.get("step_citations", [])
@@ -885,9 +885,9 @@ def resource_node(state: AgentState) -> AgentState:
         for label, keyword in CRITICAL_PROCEDURES:
             union_parts.append(
                 f"SELECT '{label}' AS procedure_name, COUNT(*) AS facility_count "
-                f"FROM {CATALOG}.gold_idp_enriched "
-                f"WHERE LOWER(procedure_enriched) LIKE '%{keyword}%' "
-                f"OR LOWER(capability_enriched) LIKE '%{keyword}%'"
+                f"FROM {CATALOG}.gold_facilities_enriched "
+                f"WHERE LOWER(doc_text) LIKE '%{keyword}%' "
+                f"OR LOWER(description) LIKE '%{keyword}%'"
             )
         scarcity_sql = " UNION ALL ".join(union_parts) + " ORDER BY facility_count ASC"
         procedure_counts = _run_async(SQLQueryService.execute_agent_sql(scarcity_sql, max_rows=30))
@@ -934,7 +934,7 @@ def resource_node(state: AgentState) -> AgentState:
         "resource_analysis", step_num,
         input_summary=f"Resource analysis: {query[:100]}",
         output_summary=f"{len(single_points)} single-point procedures. {truncate(reasoning, 120)}",
-        data_sources=["gold_idp_enriched", "gold_regional_summary"],
+        data_sources=["gold_facilities_enriched", "gold_regional_summary"],
         confidence=0.85,
     )
     prev_steps = state.get("step_citations", [])
@@ -962,12 +962,11 @@ def validation_node(state: AgentState) -> AgentState:
         validation_sql = f"""
             SELECT name, region_normalised, facility_type_clean,
                    capability_is_valid, capability_confidence,
-                   capability_anomalies,
+                   capability_dependency_gaps,
                    enhanced_procedures_no_equipment,
                    stat_anomaly_capability_inflation,
                    procedure_count, equipment_count,
-                   procedure_enriched, equipment_enriched,
-                   specialties_enriched,
+                   specialty_count,
                    llm_clinical_assessment,
                    anomaly_risk_level, total_anomaly_flags,
                    data_completeness_score,

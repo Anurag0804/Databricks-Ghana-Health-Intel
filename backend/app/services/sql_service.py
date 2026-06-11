@@ -135,7 +135,7 @@ class SQLQueryService:
                    is_hospital, is_clinic, is_ngo, is_public, is_private,
                    accepts_volunteers_bool, email, officialWebsite as official_website,
                    procedure_count, equipment_count, capability_count, specialty_count,
-                   total_stat_anomalies, capability_is_valid
+                   total_stat_anomalies
             FROM {CATALOG}.gold_facilities_enriched
             {where_clause}
             ORDER BY data_completeness_score DESC NULLS LAST
@@ -199,21 +199,12 @@ class SQLQueryService:
                 e.description,
                 e.organizationdescription,
                 e.yearestablished AS year_established,
-                e.capability_is_valid,
-                e.capability_confidence,
-                e.capability_anomalies,
                 e.total_stat_anomalies,
                 e.procedure_count,
                 e.equipment_count,
                 e.capability_count,
                 e.specialty_count,
-                e.procedure_enriched,
-                e.equipment_enriched,
-                e.capability_enriched,
-                e.specialties_enriched,
-                e.idp_citations,
-                e.idp_run_id,
-                e._idp_processed,
+                e.citations,
                 a.total_anomaly_flags,
                 a.anomaly_risk_level,
                 a.llm_priority_action,
@@ -246,17 +237,9 @@ class SQLQueryService:
         row = rows[0]
         # Parse JSON string columns
         for col in [
-            "procedure_enriched",
-            "equipment_enriched",
-            "capability_enriched",
-            "specialties_enriched",
-            "capability_anomalies",
             "phone_numbers",
         ]:
             row[col] = _parse_json_col(row.get(col))
-        for col in ["procedure_parsed", "equipment_parsed", "capability_parsed", "specialties_parsed"]:
-            row[col] = _parse_json_col(row.get(col))
-        row["idp_citations"] = _parse_json_col(row.get("idp_citations"))
 
         await CacheService.set(cache_key, row, ttl=600)
         return row
@@ -298,11 +281,10 @@ class SQLQueryService:
                    latitude, longitude, medical_desert_score, desert_label,
                    has_emergency_medicine, has_surgery, has_icu, has_obstetrics,
                    has_pediatrics, has_radiology, has_infectious_disease, has_mental_health,
-                     accepts_volunteers_bool, is_public, is_private, data_completeness_score,
+                   accepts_volunteers_bool, is_public, is_private, data_completeness_score,
                    number_doctors_int, capacity_int, is_hospital, is_clinic, is_ngo,
-                   capability_is_valid, total_stat_anomalies,
-                   capability_confidence, specialties_enriched,idp_citations
-                   
+                   total_stat_anomalies,
+                   specialty_count, citations
             FROM {CATALOG}.gold_facilities_enriched
             {where_clause}
         """
@@ -316,8 +298,7 @@ class SQLQueryService:
                 continue
             score = float(row.get("medical_desert_score") or 0)
             row["color"] = _desert_color(score)
-            row["specialties_enriched"] = _parse_json_col(row.get("specialties_enriched"))
-            row["idp_citations"] = _parse_json_col(row.get("idp_citations"))
+            row["citations"] = _parse_json_col(row.get("citations"))
             features.append({
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [lon, lat]},
@@ -612,9 +593,7 @@ class SQLQueryService:
                 llm_confirmed_anomaly_count, llm_anomaly_severity,
                 llm_clinical_assessment, llm_false_positive_reason,
                 llm_recommended_quality_category,
-                -- Enriched lists
-                specialties_enriched, procedure_enriched,
-                equipment_enriched, capability_enriched, capability_anomalies,
+                -- Scores
                 medical_desert_score, desert_label
             FROM {CATALOG}.gold_anomaly_flags
             {where_clause}
@@ -623,8 +602,7 @@ class SQLQueryService:
             params, max_rows=limit,
         )
         for row in rows:
-            for col in ["specialties_enriched", "capability_enriched", "procedure_enriched",
-                        "equipment_enriched", "capability_anomalies", "continuity_risk_flags"]:
+            for col in ["continuity_risk_flags"]:
                 row[col] = _parse_json_col(row.get(col))
 
         result = {"total": total, "items": rows}
