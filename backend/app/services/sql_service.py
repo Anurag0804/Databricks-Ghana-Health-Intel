@@ -121,7 +121,7 @@ class SQLQueryService:
 
         where_clause = f"WHERE {' AND '.join(where)}" if where else ""
 
-        count_sql = f"SELECT COUNT(*) AS total FROM {CATALOG}.gold_idp_enriched {where_clause}"
+        count_sql = f"SELECT COUNT(*) AS total FROM {CATALOG}.gold_facilities_enriched {where_clause}"
         count_result = await DatabricksQueryExecutor.execute(count_sql, params, max_rows=1)
         total = count_result[0]["total"] if count_result else 0
 
@@ -136,7 +136,7 @@ class SQLQueryService:
                    accepts_volunteers_bool, email, officialWebsite as official_website,
                    procedure_count, equipment_count, capability_count, specialty_count,
                    total_stat_anomalies, capability_is_valid
-            FROM {CATALOG}.gold_idp_enriched
+            FROM {CATALOG}.gold_facilities_enriched
             {where_clause}
             ORDER BY data_completeness_score DESC NULLS LAST
             LIMIT {limit} OFFSET {offset}
@@ -234,7 +234,7 @@ class SQLQueryService:
                 a.enhanced_low_idp_confidence,
                 a.enhanced_suspicious_completeness,
                 a.enhanced_icu_no_infrastructure
-            FROM {CATALOG}.gold_idp_enriched e
+            FROM {CATALOG}.gold_facilities_enriched e
             LEFT JOIN {CATALOG}.gold_anomaly_flags a ON e.unique_id = a.unique_id
             WHERE e.unique_id = ?
             LIMIT 1
@@ -303,7 +303,7 @@ class SQLQueryService:
                    capability_is_valid, total_stat_anomalies,
                    capability_confidence, specialties_enriched,idp_citations
                    
-            FROM {CATALOG}.gold_idp_enriched
+            FROM {CATALOG}.gold_facilities_enriched
             {where_clause}
         """
         rows = await DatabricksQueryExecutor.execute(sql, params, max_rows=2000)
@@ -349,7 +349,7 @@ class SQLQueryService:
                     SUM(CASE WHEN accepts_volunteers_bool THEN 1 ELSE 0 END) AS volunteer_facilities,
                     COUNT(DISTINCT region_normalised) AS regions_covered,
                     ROUND(AVG(data_completeness_score), 3) AS avg_completeness
-                FROM {CATALOG}.gold_idp_enriched""",
+                FROM {CATALOG}.gold_facilities_enriched""",
                 max_rows=1,
             ),
             DatabricksQueryExecutor.execute(
@@ -392,7 +392,7 @@ class SQLQueryService:
         if cached:
             return cached
         rows = await DatabricksQueryExecutor.execute(
-            f"SELECT DISTINCT region_normalised FROM {CATALOG}.gold_idp_enriched WHERE region_normalised IS NOT NULL ORDER BY region_normalised"
+            f"SELECT DISTINCT region_normalised FROM {CATALOG}.gold_facilities_enriched WHERE region_normalised IS NOT NULL ORDER BY region_normalised"
         )
         regions = [r["region_normalised"] for r in rows if r.get("region_normalised")]
         await CacheService.set(cache_key, regions, ttl=3600)
