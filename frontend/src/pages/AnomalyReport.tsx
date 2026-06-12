@@ -152,8 +152,8 @@ function useCountUp(target: number, enabled = true, dur = 900) {
 }
 
 // ── Risk KPI card ─────────────────────────────────────────────────────────────
-function RiskCard({ risk, count, active, onClick }: {
-  risk: RiskLevel; count: number; active: boolean; onClick: () => void
+function RiskCard({ risk, count }: {
+  risk: RiskLevel; count: number;
 }) {
   const cfg = RISK_CONFIG[risk]
   const { ref, inView } = useInView()
@@ -161,30 +161,16 @@ function RiskCard({ risk, count, active, onClick }: {
   return (
     <div
       ref={ref}
-      onClick={onClick}
       className="kpi-card"
       style={{
         '--accent-color': cfg.color,
-        cursor: 'pointer',
-        outline: active ? `2px solid ${cfg.color}` : '2px solid transparent',
-        outlineOffset: 3,
-        boxShadow: active ? cfg.glow : undefined,
+        cursor: 'default',
         transition: 'all 200ms cubic-bezier(0.34,1.56,0.64,1)',
-        transform: active ? 'translateY(-4px) scale(1.02)' : undefined,
         userSelect: 'none',
       } as React.CSSProperties}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 20 }}>{cfg.icon}</span>
-        <span style={{
-          fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: cfg.color,
-          opacity: active ? 1 : 0.5, fontFamily: 'var(--font-display)',
-          background: active ? `${cfg.color}20` : 'transparent',
-          padding: active ? '2px 6px' : '2px 0', borderRadius: 6,
-          transition: 'all 200ms',
-        }}>
-          {active ? '● ACTIVE' : 'CLICK TO FILTER'}
-        </span>
       </div>
       <div className="kpi-value" style={{ color: cfg.color }}>{animated.toLocaleString()}</div>
       <div className="kpi-label">{cfg.label} Risk</div>
@@ -657,8 +643,6 @@ export default function AnomalyReport() {
             key={risk}
             risk={risk}
             count={riskCounts[risk] ?? 0}
-            active={riskFilter === risk}
-            onClick={() => setRiskFilter(riskFilter === risk ? '' : risk)}
           />
         ))}
       </div>

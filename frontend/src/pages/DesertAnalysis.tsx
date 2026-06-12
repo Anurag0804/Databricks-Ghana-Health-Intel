@@ -598,7 +598,7 @@ export default function DesertAnalysis() {
                       <PolarAngleAxis dataKey="subject"
                         tick={{fill:'var(--text-secondary)',fontSize:11,fontFamily:'var(--font-display)',fontWeight:600}}/>
                       <PolarRadiusAxis angle={90} domain={[0,100]}
-                        tick={{fill:'var(--text-muted)',fontSize:9}} axisLine={false}/>
+                        tick={false} axisLine={false}/>
                       <Radar dataKey="value"
                         stroke={selectedColor} fill={selectedColor} fillOpacity={0.18}
                         strokeWidth={2.5}

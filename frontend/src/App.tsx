@@ -305,16 +305,6 @@ function TopNav({
               >
                 <span style={{ fontSize: 14 }}>{item.icon}</span>
                 <span className="nav-item-label">{item.label}</span>
-                {/* Ripple-style ping on active */}
-                {active && (
-                  <span style={{
-                    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                    width: 5, height: 5, borderRadius: '50%',
-                    background: 'var(--accent-primary)',
-                    boxShadow: '0 0 6px var(--accent-primary)',
-                    animation: 'pulse-dot 2s ease-in-out infinite',
-                  }} />
-                )}
               </NavLink>
             )
           })}
