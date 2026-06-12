@@ -73,7 +73,14 @@ class DatabricksQueryExecutor:
             if cursor.description:
                 cols = [d[0] for d in cursor.description]
                 raw = cursor.fetchmany(max_rows)
-                rows = [dict(zip(cols, row)) for row in raw]
+                rows = []
+                for r in raw:
+                    row_dict = {}
+                    for col, val in zip(cols, r):
+                        if hasattr(val, "tolist"):
+                            val = val.tolist()
+                        row_dict[col] = val
+                    rows.append(row_dict)
 
             cursor.close()
         except Exception as e:
@@ -89,7 +96,14 @@ class DatabricksQueryExecutor:
             if cursor.description:
                 cols = [d[0] for d in cursor.description]
                 raw = cursor.fetchmany(max_rows)
-                rows = [dict(zip(cols, row)) for row in raw]
+                rows = []
+                for r in raw:
+                    row_dict = {}
+                    for col, val in zip(cols, r):
+                        if hasattr(val, "tolist"):
+                            val = val.tolist()
+                        row_dict[col] = val
+                    rows.append(row_dict)
             cursor.close()
 
         elapsed_ms = round((time.monotonic() - start) * 1000, 1)
