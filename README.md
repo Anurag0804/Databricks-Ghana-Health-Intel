@@ -22,7 +22,7 @@
 
 <br/>
 
-**[🚀 Live Demo](https://virtue-foundation-ghana-dd.vercel.app)** · **[📖 Architecture](#%EF%B8%8F-architecture--data-flow)** · **[🤖 Agent Docs](#-langgraph-14-node-agent)** · **[⚡ Quickstart](#-quickstart)**
+**[🚀 Live Demo](https://ghanahealthintel-arc.vercel.app/)** · **[📖 Architecture](#%EF%B8%8F-architecture--data-flow)** · **[🤖 Agent Docs](#-langgraph-14-node-agent)** · **[⚡ Quickstart](#-quickstart)**
 
 > ⚠️ *Initial load may take ~2 min due to cold starts. Refresh once for optimal performance.*
 
