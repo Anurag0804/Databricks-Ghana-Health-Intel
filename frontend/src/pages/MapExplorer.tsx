@@ -1386,7 +1386,7 @@ export default function MapExplorer() {
           showCoverageOnHover={false}
           zoomToBoundsOnClick
           animate={false}
-          iconCreateFunction={(cluster: L.MarkerCluster) => {
+          iconCreateFunction={(cluster: any) => {
             const count = cluster.getChildCount()
             const size = count > 100 ? 48 : count > 30 ? 40 : 32
             const color = count > 100 ? '#FF4E4E' : count > 30 ? '#FF7423' : '#8B7CF7'

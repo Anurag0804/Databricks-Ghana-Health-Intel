@@ -299,10 +299,44 @@ export default function DesertAnalysis() {
   const hasFilters = !!(desertFilter||minScore>0||gapFilter>0||searchQuery)
 
   if (loading) return (
-    <div className="page-body">
-      <div className="loading-center" style={{minHeight:'60vh'}}>
-        <div className="spinner" />
-        <span>Loading desert intelligence…</span>
+    <div className="page-body" style={{ maxWidth: 1600, margin: '0 auto' }}>
+      {/* Header skeleton */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="skeleton" style={{ width: 340, height: 28, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: 520, height: 16 }} />
+      </div>
+
+      {/* Global summary bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10, marginBottom: 20, padding: 14, background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 14 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 6px' }}>
+            <div className="skeleton" style={{ width: 24, height: 24, borderRadius: '50%', marginBottom: 6 }} />
+            <div className="skeleton" style={{ width: 40, height: 18, marginBottom: 4 }} />
+            <div className="skeleton" style={{ width: 50, height: 10 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Desert label KPI cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 20 }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="kpi-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div className="skeleton" style={{ width: 40, height: 14 }} />
+            </div>
+            <div className="skeleton" style={{ width: '50%', height: 24, marginBottom: 6 }} />
+            <div className="skeleton" style={{ width: '40%', height: 12 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Tab bar */}
+      <div style={{ height: 44, background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 12, marginBottom: 20 }} />
+
+      {/* Main Bar Chart card */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="skeleton" style={{ width: 260, height: 18, marginBottom: 20 }} />
+        <div className="skeleton" style={{ width: '100%', height: 220, borderRadius: 10 }} />
       </div>
     </div>
   )

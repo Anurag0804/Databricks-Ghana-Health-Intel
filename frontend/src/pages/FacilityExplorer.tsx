@@ -683,7 +683,51 @@ export default function FacilityExplorer() {
       </div>
 
       {loading ? (
-        <div className="loading-center"><div className="spinner" /><span>Loading facilities…</span></div>
+        viewMode === 'table' ? (
+          <div style={{ borderRadius: 14, border: '1px solid var(--bg-border)', overflowX: 'auto', marginBottom: 20 }}>
+            <table className="data-table" style={{ minWidth: 1000 }}>
+              <thead>
+                <tr>
+                  <th>Name</th><th>Region</th><th>Type</th><th>City</th><th style={{ textAlign: 'center' }}>Procedures</th><th style={{ textAlign: 'center' }}>Equipment</th><th>Capabilities</th><th style={{ textAlign: 'center' }}>Flags</th><th>Desert Score</th><th>Completeness</th><th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    <td><div className="skeleton" style={{ width: 140, height: 16 }} /></td>
+                    <td><div className="skeleton" style={{ width: 80, height: 16 }} /></td>
+                    <td><div className="skeleton" style={{ width: 60, height: 16 }} /></td>
+                    <td><div className="skeleton" style={{ width: 70, height: 16 }} /></td>
+                    <td><div className="skeleton" style={{ width: 30, height: 16, margin: '0 auto' }} /></td>
+                    <td><div className="skeleton" style={{ width: 30, height: 16, margin: '0 auto' }} /></td>
+                    <td><div className="skeleton" style={{ width: 120, height: 16 }} /></td>
+                    <td><div className="skeleton" style={{ width: 24, height: 16, margin: '0 auto' }} /></td>
+                    <td><div className="skeleton" style={{ width: 40, height: 16 }} /></td>
+                    <td><div className="skeleton" style={{ width: 50, height: 16 }} /></td>
+                    <td><div className="skeleton" style={{ width: 50, height: 24, borderRadius: 6 }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 20 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="card" style={{ padding: 14 }}>
+                <div className="skeleton" style={{ width: '80%', height: 18, marginBottom: 8 }} />
+                <div className="skeleton" style={{ width: '40%', height: 12, marginBottom: 16 }} />
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <div className="skeleton" style={{ width: 50, height: 18, borderRadius: 6 }} />
+                  <div className="skeleton" style={{ width: 60, height: 18, borderRadius: 6 }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--bg-border)', paddingTop: 10, marginTop: 6 }}>
+                  <div className="skeleton" style={{ width: 80, height: 16 }} />
+                  <div className="skeleton" style={{ width: 60, height: 24, borderRadius: 6 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : items.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: '60px 20px',

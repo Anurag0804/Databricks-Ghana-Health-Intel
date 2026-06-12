@@ -550,6 +550,7 @@ export default function AnomalyReport() {
   const [expandedRow,   setExpandedRow]   = useState<string | null>(null)
   const [viewMode,      setViewMode]      = useState<'table'|'cards'>('table')
   const [activeTab,     setActiveTab]     = useState<'overview'|'detail'>('overview')
+  const [firstLoad,     setFirstLoad]     = useState(true)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const limit = 50
 
@@ -568,7 +569,10 @@ export default function AnomalyReport() {
       if (regionFilter) params.region     = regionFilter
       await getAnomalies(params).then(d => { setItems(d.items); setTotal(d.total) })
     } catch (e) { console.error(e) }
-    finally { setLoading(false) }
+    finally {
+      setLoading(false)
+      setFirstLoad(false)
+    }
   }, [riskFilter, regionFilter, page])
 
   useEffect(() => { loadData() }, [loadData])
@@ -623,6 +627,81 @@ export default function AnomalyReport() {
     { label: 'Avg Emergency',    value: fmt(globalStats.avg_emergency_readiness, true),icon: '🚨', color: '#4ADE80' },
     { label: 'Avg Maturity',     value: fmt(globalStats.avg_healthcare_maturity, true),icon: '🏗️', color: '#00D4B1' },
   ]
+
+  const isPageLoading = firstLoad || Object.keys(summary).length === 0
+
+  if (isPageLoading) return (
+    <div className="page-body" style={{ maxWidth: 1600, margin: '0 auto' }}>
+      {/* Header skeleton */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="skeleton" style={{ width: 360, height: 28, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: 560, height: 16 }} />
+      </div>
+
+      {/* Risk KPI cards skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="kpi-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div className="skeleton" style={{ width: 24, height: 24, borderRadius: 6 }} />
+            </div>
+            <div className="skeleton" style={{ width: '50%', height: 28, marginBottom: 8 }} />
+            <div className="skeleton" style={{ width: '40%', height: 12 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Global stats micro-bar skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8, marginBottom: 20, padding: 14, background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 14 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 6px' }}>
+            <div className="skeleton" style={{ width: 24, height: 24, borderRadius: '50%', marginBottom: 6 }} />
+            <div className="skeleton" style={{ width: 40, height: 16, marginBottom: 4 }} />
+            <div className="skeleton" style={{ width: 60, height: 10 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Tab bar skeleton */}
+      <div style={{ height: 44, background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 12, marginBottom: 20 }} />
+
+      {/* Charts row skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 16 }}>
+        <div className="card">
+          <div className="skeleton" style={{ width: 200, height: 18, marginBottom: 20 }} />
+          <div className="skeleton" style={{ width: '100%', height: 200, borderRadius: 10 }} />
+        </div>
+        <div className="card">
+          <div className="skeleton" style={{ width: 200, height: 18, marginBottom: 20 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div className="skeleton" style={{ width: 120, height: 120, borderRadius: '50%', flexShrink: 0 }} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="skeleton" style={{ width: 9, height: 9, borderRadius: 3 }} />
+                  <div className="skeleton" style={{ flex: 1, height: 12 }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="skeleton" style={{ width: 200, height: 18, marginBottom: 20 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div className="skeleton" style={{ width: 100, height: 12 }} />
+                  <div className="skeleton" style={{ width: 20, height: 12 }} />
+                </div>
+                <div className="skeleton" style={{ width: '100%', height: 4, borderRadius: 2 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="page-body" style={{ maxWidth: 1600, margin: '0 auto' }}>
@@ -942,7 +1021,51 @@ export default function AnomalyReport() {
           </div>
 
           {loading ? (
-            <div className="loading-center"><div className="spinner" /><span>Loading anomalies…</span></div>
+            viewMode === 'table' ? (
+              <div style={{ overflowX: 'auto', borderRadius: 14, border: '1px solid var(--bg-border)', marginBottom: 20 }}>
+                <table className="data-table" style={{ minWidth: 920 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 32 }}></th>
+                      <th>Facility</th><th>Region</th><th>Risk</th><th>Composite</th><th>Ghost %</th><th>Stat Flags</th><th>ML Flags</th><th>LLM Quality</th><th>Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i}>
+                        <td></td>
+                        <td><div className="skeleton" style={{ width: 140, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 90, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 60, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 40, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 40, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 100, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 100, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 40, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 50, height: 24, borderRadius: 6 }} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 20 }}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="card" style={{ padding: 14 }}>
+                    <div className="skeleton" style={{ width: '80%', height: 18, marginBottom: 8 }} />
+                    <div className="skeleton" style={{ width: '40%', height: 12, marginBottom: 16 }} />
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <div className="skeleton" style={{ width: 50, height: 18, borderRadius: 6 }} />
+                      <div className="skeleton" style={{ width: 60, height: 18, borderRadius: 6 }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--bg-border)', paddingTop: 10, marginTop: 6 }}>
+                      <div className="skeleton" style={{ width: 80, height: 16 }} />
+                      <div className="skeleton" style={{ width: 60, height: 24, borderRadius: 6 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : sorted.length === 0 ? (
             <div style={{
               textAlign: 'center', padding: '60px 20px',

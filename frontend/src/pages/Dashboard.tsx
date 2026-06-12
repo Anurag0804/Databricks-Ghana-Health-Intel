@@ -476,10 +476,53 @@ export default function Dashboard() {
   const maxTotal = regional.reduce((sum, r) => sum + (r.total_facilities || 0), 0)
 
   if (loading) return (
-    <div className="page-body">
-      <div className="loading-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
-        <div className="spinner" />
-        <span>Loading intelligence dashboard…</span>
+    <div className="page-body" style={{ maxWidth: 1600, margin: '0 auto' }}>
+      {/* Header skeleton */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="skeleton" style={{ width: 320, height: 28, marginBottom: 8 }} />
+        <div className="skeleton" style={{ width: 480, height: 16 }} />
+      </div>
+
+      {/* KPI Cards skeleton */}
+      <div className="kpi-grid mb-6">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="kpi-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--bg-border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div className="skeleton" style={{ width: 24, height: 24, borderRadius: 6 }} />
+              <div className="skeleton" style={{ width: 36, height: 18, borderRadius: 2 }} />
+            </div>
+            <div className="skeleton" style={{ width: '60%', height: 28, marginBottom: 8 }} />
+            <div className="skeleton" style={{ width: '40%', height: 12 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs placeholder */}
+      <div style={{ height: 44, background: 'var(--bg-card)', border: '1px solid var(--bg-border)', borderRadius: 12, marginBottom: 20 }} />
+
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
+        <div className="card">
+          <div className="skeleton" style={{ width: 220, height: 18, marginBottom: 6 }} />
+          <div className="skeleton" style={{ width: 140, height: 12, marginBottom: 20 }} />
+          <div className="skeleton" style={{ width: '100%', height: 240, borderRadius: 10 }} />
+        </div>
+        <div className="card">
+          <div className="skeleton" style={{ width: 220, height: 18, marginBottom: 6 }} />
+          <div className="skeleton" style={{ width: 140, height: 12, marginBottom: 20 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div className="skeleton" style={{ width: 150, height: 150, borderRadius: '50%', flexShrink: 0 }} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="skeleton" style={{ width: 9, height: 9, borderRadius: 3 }} />
+                  <div className="skeleton" style={{ flex: 1, height: 12 }} />
+                  <div className="skeleton" style={{ width: 24, height: 12 }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
