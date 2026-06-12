@@ -1,9 +1,10 @@
-// src/pages/MapExplorer.tsx — Mission Control v4 (Performance-Optimised)
+// src/pages/MapExplorer.tsx — Mission Control v5 (Clustered + Canvas)
 import { useEffect, useState, useCallback, useRef, useMemo, memo } from 'react'
 import {
   MapContainer, TileLayer, Marker, Popup, Tooltip,
   ZoomControl, useMap, CircleMarker,
 } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { getFacilitiesMap, getRegions, getFacilityDetail, type FacilityDetail } from '../api/client'
@@ -732,29 +733,39 @@ const FilterChip = memo(function FilterChip({ label, onRemove }: { label: string
 // ── Sidebar panel ─────────────────────────────────────────────────────────────
 const SidebarPanel = memo(function SidebarPanel({ collapsed, onToggle, children }: { collapsed: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
-    <div style={{
-      position: 'absolute', top: 16, left: collapsed ? -238 : 16,
-      zIndex: 1000, width: 244,
-      display: 'flex', flexDirection: 'column', gap: 10,
-      transition: 'left 380ms cubic-bezier(0.34,1.3,0.64,1)',
-    }}>
-      {children}
+    <>
+      {/* Scrollable content */}
+      <div className="sidebar-scrollable" style={{
+        position: 'absolute', top: 16, bottom: 16, left: collapsed ? -238 : 16,
+        zIndex: 1000, width: 244,
+        display: 'flex', flexDirection: 'column', gap: 10,
+        transition: 'left 380ms cubic-bezier(0.34,1.3,0.64,1)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'var(--bg-border-accent) transparent',
+        paddingRight: 4,
+        paddingBottom: 4,
+      }}>
+        {children}
+      </div>
+      {/* Toggle button — outside scrollable container */}
       <button onClick={onToggle} style={{
-        position: 'absolute', top: 8, right: collapsed ? -42 : -34,
-        width: 26, height: 52,
+        position: 'absolute', top: 24, left: collapsed ? 6 : 260,
+        zIndex: 1001, width: 26, height: 52,
         background: 'var(--bg-card)', border: '1px solid var(--bg-border)',
         borderLeft: 'none', borderRadius: '0 10px 10px 0', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 11, color: 'var(--text-muted)',
         boxShadow: '4px 0 16px rgba(0,0,0,0.2)',
-        transition: 'all 150ms ease',
+        transition: 'all 380ms cubic-bezier(0.34,1.3,0.64,1)',
       }}
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-teal)' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)' }}
       >
         {collapsed ? '›' : '‹'}
       </button>
-    </div>
+    </>
   )
 })
 
@@ -802,36 +813,20 @@ function getMarkerIcon(
   const cached = iconCache.get(key)
   if (cached) return cached
 
-  const size = isActive ? 36 : 28
+  const size = isActive ? 34 : 26
   const icon = L.divIcon({
     className: '',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
     html: `
-      <div style="position:relative;width:${size}px;height:${size}px;transform:translate(-50%,-50%);">
-        ${hasPulse ? `
-          <div style="
-            position:absolute;inset:-6px;border-radius:50%;
-            border:2px solid ${markerColor};
-            animation:markerPulse 2s ease-out infinite;
-            opacity:0.5;pointer-events:none;
-          "></div>
-          <div style="
-            position:absolute;inset:-12px;border-radius:50%;
-            border:1.5px solid ${markerColor};
-            animation:markerPulse 2s ease-out infinite 0.5s;
-            opacity:0.25;pointer-events:none;
-          "></div>
-        ` : ''}
-        <div style="
-          width:${size}px;height:${size}px;border-radius:50%;
-          display:flex;align-items:center;justify-content:center;
-          font-size:${isActive ? 20 : 15}px;
-          background:${isActive ? `${markerColor}1a` : 'rgba(6,9,26,0.7)'};
-          border:${isActive ? `2px solid ${markerColor}80` : `1.5px solid ${markerColor}40`};
-          box-shadow:0 0 ${isActive ? 18 : 8}px ${markerColor}${isActive ? 'bb' : '55'};
-          backdrop-filter:blur(4px);
-          transition:all 200ms cubic-bezier(0.34,1.56,0.64,1);
-        ">${emoji}</div>
-      </div>
+      <div style="
+        width:${size}px;height:${size}px;border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:${isActive ? 18 : 13}px;
+        background:${isActive ? `${markerColor}22` : 'rgba(6,9,26,0.75)'};
+        border:${isActive ? `2px solid ${markerColor}` : `1.5px solid ${markerColor}55`};
+        ${isActive ? `box-shadow:0 0 12px ${markerColor}80;` : ''}
+      ">${emoji}</div>
     `,
   })
   iconCache.set(key, icon)
@@ -1098,8 +1093,20 @@ export default function MapExplorer() {
     setDesertOnly(false); setSearchTerm('')
   }, [])
 
-  const toggleDesertOnly    = useCallback(() => setDesertOnly(v => !v), [])
-  const toggleDesertHeat    = useCallback(() => setShowDesertHeat(v => !v), [])
+  const toggleDesertOnly    = useCallback(() => {
+    setDesertOnly(v => {
+      const next = !v
+      if (next) setShowDesertHeat(false)
+      return next
+    })
+  }, [])
+  const toggleDesertHeat    = useCallback(() => {
+    setShowDesertHeat(v => {
+      const next = !v
+      if (next) setDesertOnly(false)
+      return next
+    })
+  }, [])
   const toggleStats         = useCallback(() => setStatsOpen(v => !v), [])
   const toggleSidebar       = useCallback(() => setSidebarCollapsed(v => !v), [])
   const clearSearch         = useCallback(() => setSearchTerm(''), [])
@@ -1132,16 +1139,18 @@ export default function MapExplorer() {
   const regionOptions = useMemo(() => regions.map(r => ({ value: r, label: r })), [regions])
 
   return (
-    <div style={{ position: 'relative', height: 'calc(100vh - 70px)', overflow: 'hidden', background: 'var(--bg-base)' }}>
+    <div style={{ position: 'relative', height: 'calc(100vh - 91px)', overflow: 'hidden', background: 'var(--bg-base)' }}>
 
       {/* ── Controls sidebar ── */}
       <SidebarPanel collapsed={sidebarCollapsed} onToggle={toggleSidebar}>
 
         {/* Main controls card */}
         <div style={{
-          borderRadius: 18, overflow: 'hidden',
+          borderRadius: 18,
           background: 'var(--bg-card)', border: '1px solid var(--bg-border)',
           backdropFilter: 'blur(16px)', boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+          display: 'flex', flexDirection: 'column',
+          maxHeight: 'calc(55vh - 20px)', overflow: 'hidden',
         }}>
           {/* Header */}
           <div style={{
@@ -1196,6 +1205,9 @@ export default function MapExplorer() {
               </div>
             )}
           </div>
+
+          {/* Scrollable body */}
+          <div className="sidebar-scrollable" style={{ overflowY: 'auto', overflowX: 'hidden', flex: 1, minHeight: 0 }}>
 
           {/* Search */}
           <div style={{ padding: '10px 10px 0', position: 'relative' }}>
@@ -1290,13 +1302,16 @@ export default function MapExplorer() {
               ))}
             </div>
           </div>
+          </div>{/* end scrollable body */}
         </div>
 
         {/* Stats card */}
         <div style={{
-          borderRadius: 18, overflow: 'hidden', background: 'var(--bg-card)',
+          borderRadius: 18, background: 'var(--bg-card)',
           border: '1px solid var(--bg-border)', backdropFilter: 'blur(16px)',
           boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+          display: 'flex', flexDirection: 'column',
+          maxHeight: 'calc(40vh - 20px)', overflow: 'hidden',
         }}>
           <button onClick={toggleStats} style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1310,7 +1325,7 @@ export default function MapExplorer() {
           </button>
 
           {statsOpen && (
-            <div style={{ padding: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+            <div className="sidebar-scrollable" style={{ padding: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, overflowY: 'auto', flex: 1, minHeight: 0 }}>
               {statCards.map((s, i) => <AnimatedStatCard key={s.label} {...s} index={i} />)}
             </div>
           )}
@@ -1354,7 +1369,7 @@ export default function MapExplorer() {
       </div>
 
       {/* ── Map ── */}
-      <MapContainer center={[7.9465, -1.0232]} zoom={7} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+      <MapContainer center={[7.9465, -1.0232]} zoom={7} style={{ height: '100%', width: '100%' }} zoomControl={false} preferCanvas={true}>
         <ZoomControl position="bottomright" />
         <TileLayer key={tileStyle} url={TILE_LAYERS[tileStyle]} attribution="&copy; OpenStreetMap contributors &copy; CARTO" maxZoom={19} />
 
@@ -1363,22 +1378,49 @@ export default function MapExplorer() {
           <DesertCircle key={dr.region} dr={dr} />
         ))}
 
-        {/* Facility markers */}
-        {features.map((f, i) => {
-          const markerId = f.properties.unique_id || String(i)
-          return (
-            <FacilityMarker
-              key={markerId}
-              f={f}
-              index={i}
-              isActive={activePopupId === markerId}
-              detail={f.properties.unique_id ? detailCache[f.properties.unique_id] : undefined}
-              loadingDetail={f.properties.unique_id ? detailLoading[f.properties.unique_id] ?? false : false}
-              onMarkerClick={handleMarkerClick}
-              onPopupClose={handlePopupClose}
-            />
-          )
-        })}
+        {/* Clustered facility markers */}
+        <MarkerClusterGroup
+          chunkedLoading
+          maxClusterRadius={60}
+          spiderfyOnMaxZoom
+          showCoverageOnHover={false}
+          zoomToBoundsOnClick
+          animate={false}
+          iconCreateFunction={(cluster: L.MarkerCluster) => {
+            const count = cluster.getChildCount()
+            const size = count > 100 ? 48 : count > 30 ? 40 : 32
+            const color = count > 100 ? '#FF4E4E' : count > 30 ? '#FF7423' : '#8B7CF7'
+            return L.divIcon({
+              html: `<div style="
+                width:${size}px;height:${size}px;border-radius:50%;
+                display:flex;align-items:center;justify-content:center;
+                background:${color}22;border:2px solid ${color};
+                color:${color};font-size:${size > 40 ? 13 : 11}px;
+                font-weight:800;font-family:var(--font-mono);
+                letter-spacing:-0.02em;
+              ">${count}</div>`,
+              className: '',
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+            })
+          }}
+        >
+          {features.map((f, i) => {
+            const markerId = f.properties.unique_id || String(i)
+            return (
+              <FacilityMarker
+                key={markerId}
+                f={f}
+                index={i}
+                isActive={activePopupId === markerId}
+                detail={f.properties.unique_id ? detailCache[f.properties.unique_id] : undefined}
+                loadingDetail={f.properties.unique_id ? detailLoading[f.properties.unique_id] ?? false : false}
+                onMarkerClick={handleMarkerClick}
+                onPopupClose={handlePopupClose}
+              />
+            )
+          })}
+        </MarkerClusterGroup>
 
         <RegionZoomer features={features} />
       </MapContainer>
@@ -1408,10 +1450,19 @@ export default function MapExplorer() {
 
       {/* ── Map CSS ── */}
       <style>{`
-        @keyframes markerPulse {
-          0%   { transform: scale(1);   opacity: 0.6; }
-          70%  { transform: scale(1.8); opacity: 0;   }
-          100% { transform: scale(1.8); opacity: 0;   }
+        /* Disable default markercluster styles — we use custom iconCreateFunction */
+        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+          background: transparent !important;
+        }
+        .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+          background: transparent !important;
+        }
+        .marker-cluster {
+          background: transparent !important;
+        }
+        .leaflet-marker-icon.marker-cluster {
+          margin-left: 0 !important;
+          margin-top: 0 !important;
         }
         @keyframes pulseOpacity {
           0%, 100% { opacity: 1; }

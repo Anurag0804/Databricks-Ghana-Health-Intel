@@ -1242,6 +1242,9 @@ body {
 .history-sidebar::-webkit-scrollbar       { width: 4px; }
 .history-sidebar::-webkit-scrollbar-thumb { background: var(--bg-border-accent); border-radius: 2px; }
 
+.sidebar-scrollable::-webkit-scrollbar       { width: 4px; }
+.sidebar-scrollable::-webkit-scrollbar-thumb { background: var(--bg-border-accent); border-radius: 2px; }
+
 .stream-ticker      { display: flex; flex-direction: column; gap: 4px; animation: fadeIn 200ms both; }
 .stream-ticker-item { display: flex; align-items: center; gap: 8px; font-size: 11px; animation: fadeInLeft 200ms both; }
 
